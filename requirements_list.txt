@@ -1,0 +1,14 @@
+## python
+pyserial==3.5
+
+## arduino
+[MPU9250] https://github.com/hideakitai/MPU9250/tree/master
+
+## node
+{
+    "dependencies": {
+        "cors": "^2.8.5",
+        "express": "^4.17.1",
+        "socket.io": "^4.0.1"
+    }
+}
