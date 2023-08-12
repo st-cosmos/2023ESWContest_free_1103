@@ -9,12 +9,10 @@
 
 #define MAX_STRING_PARTS 6
 
-#define PIN_GPS_RX 4
-#define PIN_GPS_TX 3
+#define PIN_GPS_RX 12
+#define PIN_GPS_TX 11
 
-#define INDOOR_TEST
-
-SoftwareSerial gps(PIN_GPS_RX, PIN_GPS_TX);
+// #define INDOOR_TEST
 
 typedef struct {
     int degree;
@@ -23,23 +21,25 @@ typedef struct {
 } GPosition;
 
 
+SoftwareSerial gps(PIN_GPS_RX, PIN_GPS_TX);
 
-void setup() {
-    Serial.begin(9600);
-    Serial.println("Start Serial...");
-
+void initGps() {
     gps.begin(9600); // Hardware Tx1, RX0 Pin
 }
 
-void loop() {
+void getCurrentPosition(double& lat, double& lng) {
+/*
 #ifdef INDOOR_TEST
     if (true) 
     {
         String string = "GPGGA,094710.00,3737.79895,N,12704.79369,E,1,05,2.51,38.1,M,18.6,M,,*69";
 #else
-     if (gps.available()){
-         String string = gps.readStringUntil('$');
+    if (gps.available()){
+        String string = gps.readStringUntil('$');
 #endif
+*/
+    if (gps.available()){
+        String string = gps.readStringUntil('$');
         GPosition lat, lng;
         int ret = getLatAndLng(string, lat, lng);
         if (ret) {
@@ -48,7 +48,11 @@ void loop() {
             double lngValue = getGPositionValue(lng);
             Serial.print("Target:\t\t"); Serial.print(LAT_TARGET, 5); Serial.print("\t|\t"); Serial.println(LNG_TARGET, 5); 
             Serial.print("Current:\t"); Serial.print(latValue, 5); Serial.print("\t|\t"); Serial.println(lngValue, 5); 
-
+            
+            lat = latValue;
+            lng = lngValue;
+            
+            /*
             if(latValue >LAT_RANGE_MIN && latValue < LAT_RANGE_MAX && lngValue > LNG_RANGE_MIN && lngValue < LNG_RANGE_MAX) {
                 Serial.println("*** STOP ***");
             }
@@ -62,14 +66,10 @@ void loop() {
                 else if(lngValue - LNG_TARGET < 0) Serial.println("to E,");
                 else Serial.println("to ,");
             }
+            */
         }
-    // }
-    // do not use delay
+    }    
 }
-}
-
-
-
 
 
 void splitString(char* input, char* delimiter, char** output, int max_parts = MAX_STRING_PARTS) {

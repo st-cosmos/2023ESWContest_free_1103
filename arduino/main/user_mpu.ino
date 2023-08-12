@@ -3,8 +3,7 @@
 
 MPU9250 mpu;
 
-void setup() {
-    Serial.begin(9600);
+void initMpu() {
     Wire.begin();
 
     // Initialize MPU9250
@@ -31,7 +30,7 @@ void setup() {
     mpu.verbose(false);
 }
 
-void loop() {
+float getHeading() {
     // Read sensor data
     mpu.update();
 
@@ -42,8 +41,7 @@ void loop() {
     // Display the heading value
     Serial.print("Heading: ");
     Serial.println(heading);
-
-    // delay(100); // Adjust the delay according to your application needs
+    return heading;
 }
 
 void print_calibration() {
