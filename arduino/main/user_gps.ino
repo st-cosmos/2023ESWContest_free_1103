@@ -1,33 +1,8 @@
-#include <SoftwareSerial.h>
-#define LAT_RANGE_MAX 37.630968
-#define LAT_RANGE_MIN 37.630855
-#define LAT_TARGET 37.630912
-
-#define LNG_RANGE_MAX 127.079620
-#define LNG_RANGE_MIN 127.079512
-#define LNG_TARGET 127.079566
-
-#define MAX_STRING_PARTS 6
-
-#define PIN_GPS_RX 12
-#define PIN_GPS_TX 11
-
-// #define INDOOR_TEST
-
-typedef struct {
-    int degree;
-    int minute;
-    double second;
-} GPosition;
-
-
-SoftwareSerial gps(PIN_GPS_RX, PIN_GPS_TX);
-
 void initGps() {
     gps.begin(9600); // Hardware Tx1, RX0 Pin
 }
 
-void getCurrentPosition(double& lat, double& lng) {
+void getCurrentPosition(double& latValue, double& lngValue) {
 /*
 #ifdef INDOOR_TEST
     if (true) 
@@ -43,14 +18,11 @@ void getCurrentPosition(double& lat, double& lng) {
         GPosition lat, lng;
         int ret = getLatAndLng(string, lat, lng);
         if (ret) {
-            printGPosition(lat); Serial.print(" | "); printGPosition(lng); Serial.println("");
-            double latValue = getGPositionValue(lat);
-            double lngValue = getGPositionValue(lng);
-            Serial.print("Target:\t\t"); Serial.print(LAT_TARGET, 5); Serial.print("\t|\t"); Serial.println(LNG_TARGET, 5); 
-            Serial.print("Current:\t"); Serial.print(latValue, 5); Serial.print("\t|\t"); Serial.println(lngValue, 5); 
-            
-            lat = latValue;
-            lng = lngValue;
+            // printGPosition(lat); Serial.print(" | "); printGPosition(lng); Serial.println("");
+            latValue = getGPositionValue(lat);
+            lngValue = getGPositionValue(lng);
+            // Serial.print("Target:\t\t"); Serial.print(LAT_TARGET, 5); Serial.print("\t|\t"); Serial.println(LNG_TARGET, 5); 
+            // Serial.print("Current:\t"); Serial.print(latValue, 5); Serial.print("\t|\t"); Serial.println(lngValue, 5); 
             
             /*
             if(latValue >LAT_RANGE_MIN && latValue < LAT_RANGE_MAX && lngValue > LNG_RANGE_MIN && lngValue < LNG_RANGE_MAX) {
@@ -92,12 +64,11 @@ int getLatAndLng(String& string, GPosition& lat, GPosition& lng) {
     // char* string_to_print;
     // strcpy(string_to_print, string.c_str());
 
-     char* string_to_parse; 
-    strcpy(string_to_parse, string.c_str());
+    // char* string_to_parse; 
+    // strcpy(string_to_parse, string.c_str());
 
-    
     char* parts[MAX_STRING_PARTS];
-    splitString(string_to_parse, ",", parts, MAX_STRING_PARTS);
+    splitString(string.c_str(), ",", parts, MAX_STRING_PARTS);
     if(!String(parts[0]).compareTo("GPGGA")) {
         /*
         * TODO: resolve toDouble error issue
@@ -115,11 +86,11 @@ int getLatAndLng(String& string, GPosition& lat, GPosition& lng) {
     else return 0;
 }
 
-void printGPosition(GPosition& pos) {
-    Serial.print(pos.degree); Serial.print("d ");
-    Serial.print(pos.minute); Serial.print("' ");
-    Serial.print(pos.second,5); Serial.print("''");
-}
+// void printGPosition(GPosition& pos) {
+//     Serial.print(pos.degree); Serial.print("d ");
+//     Serial.print(pos.minute); Serial.print("' ");
+//     Serial.print(pos.second,5); Serial.print("''");
+// }
 
 double getGPositionValue(GPosition& pos) {
     return pos.degree + ((double) pos.minute / 60) + ((double) pos.second / 3600);

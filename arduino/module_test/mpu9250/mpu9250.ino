@@ -31,13 +31,30 @@ void setup() {
     mpu.verbose(false);
 }
 
+int count = 0;
+int sum = 0;
+
 void loop() {
     // Read sensor data
     mpu.update();
 
     // Calculate the heading in degrees using the magnetometer data
     float heading = atan2(mpu.getMagY(), mpu.getMagX()) * 180.0 / PI;
-    if (heading < 0) heading += 360.0;
+
+    // sum += heading;
+    // count++;
+
+    // if(count == 20) {
+    //     heading = sum / 20;
+    //     if (heading < 0) heading += 360.0;
+    //     Serial.print("Heading: ");
+    //     Serial.println(heading);
+    //     count = 0;
+    //     sum = 0;
+    // }    
+    
+    
+    // if (heading < 0) heading += 360.0;
 
     // Display the heading value
     Serial.print("Heading: ");

@@ -1,7 +1,7 @@
 #include <SoftwareSerial.h>
 
-#define PIN_GPS_RX 3
-#define PIN_GPS_TX 4
+#define PIN_GPS_RX 12
+#define PIN_GPS_TX 11
 
 SoftwareSerial gps(PIN_GPS_RX, PIN_GPS_TX);
 
