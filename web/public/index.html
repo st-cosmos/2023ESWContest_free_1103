@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Admin Page</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="styles.css">
+        <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=231169f94ce083c301ab9684a7cd3464&libraries=services,clusterer,drawing"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.0/axios.min.js" integrity="sha512-aoTNnqZcT8B4AmeCFmiSnDlc4Nj/KPaZyB5G7JnOnUEkdNpCZs1LCankiYi01sLTyWy+m2P+W4XM+BuQ3Q4/Dg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    </head>
+    <body>
+        <h1>관리 페이지</h1>
+        <div id="main-section">
+            <div id="map"></div>
+            <div id="device-panel"></div>
+            <div id="device-control-panel">
+                <label for="dropdown">Device ID : </label>
+                <select id="dropdown"></select>
+                <button onclick="setDevicePostion()">위치 설정하기</button>
+            </div>
+        </div>
+
+        <script src="main.js"></script>
+    </body>
+</html>
