@@ -3,16 +3,6 @@ void initGps() {
 }
 
 void getCurrentPosition(double& latValue, double& lngValue) {
-/*
-#ifdef INDOOR_TEST
-    if (true) 
-    {
-        String string = "GPGGA,094710.00,3737.79895,N,12704.79369,E,1,05,2.51,38.1,M,18.6,M,,*69";
-#else
-    if (gps.available()){
-        String string = gps.readStringUntil('$');
-#endif
-*/
     if (gps.available()){
         String string = gps.readStringUntil('$');
         GPosition lat, lng;
@@ -23,26 +13,9 @@ void getCurrentPosition(double& latValue, double& lngValue) {
             lngValue = getGPositionValue(lng);
             // Serial.print("Target:\t\t"); Serial.print(LAT_TARGET, 5); Serial.print("\t|\t"); Serial.println(LNG_TARGET, 5); 
             // Serial.print("Current:\t"); Serial.print(latValue, 5); Serial.print("\t|\t"); Serial.println(lngValue, 5); 
-            
-            /*
-            if(latValue >LAT_RANGE_MIN && latValue < LAT_RANGE_MAX && lngValue > LNG_RANGE_MIN && lngValue < LNG_RANGE_MAX) {
-                Serial.println("*** STOP ***");
-            }
-            else {
-                Serial.print("*** GO *** ");
-                if(latValue - LAT_TARGET > 0) Serial.print("to S,");
-                else if(latValue - LAT_TARGET < 0) Serial.print("to N,");
-                else Serial.print("to ,");
-
-                if(lngValue - LNG_TARGET > 0) Serial.println("to W,");
-                else if(lngValue - LNG_TARGET < 0) Serial.println("to E,");
-                else Serial.println("to ,");
-            }
-            */
         }
     }    
 }
-
 
 void splitString(char* input, char* delimiter, char** output, int max_parts = MAX_STRING_PARTS) {
     int count = 0;
@@ -61,12 +34,6 @@ void convertRawToGPos(GPosition& pos, double raw_value) {
 }
 
 int getLatAndLng(String& string, GPosition& lat, GPosition& lng) {
-    // char* string_to_print;
-    // strcpy(string_to_print, string.c_str());
-
-    // char* string_to_parse; 
-    // strcpy(string_to_parse, string.c_str());
-
     char* parts[MAX_STRING_PARTS];
     splitString(string.c_str(), ",", parts, MAX_STRING_PARTS);
     if(!String(parts[0]).compareTo("GPGGA")) {

@@ -1,48 +1,33 @@
+#include <ArduinoJson.h>
 #include <QMC5883LCompass.h>
-
-// BLUETOOTH
-#define ble Serial2
-
+#include <string.h>
 // GPS
 #define gps Serial1
-
-// MOTOR
+#define MAX_STRING_PARTS 6
+// 모터
 #define PIN_MOTOR_L_F 4
 #define PIN_MOTOR_L_B 5
 #define PIN_MOTOR_R_F 6
 #define PIN_MOTOR_R_B 7
-
-#define LAT_RANGE_MAX 37.630968
-#define LAT_RANGE_MIN 37.630855
-#define LAT_TARGET 37.630912
-
-#define LNG_RANGE_MAX 127.079620
-#define LNG_RANGE_MIN 127.079512
-#define LNG_TARGET 127.079566
-
-#define MAX_STRING_PARTS 6
+// 초음파
+#define PIN_US_F_TRIG 26
+#define PIN_US_F_ECHO 27
+#define PIN_US_B_TRIG 28
+#define PIN_US_B_ECHO 29
+#define PIN_US_L_TRIG 30
+#define PIN_US_L_ECHO 31
+#define PIN_US_R_TRIG 32
+#define PIN_US_R_ECHO 33
+#define PIN_US_U_TRIG 34
+#define PIN_US_U_ECHO 35
+// 블루투스
+#define ble Serial2
 
 typedef struct {
     int degree;
     int minute;
     double second;
 } GPosition;
-
-QMC5883LCompass compass;
-
-int count = 0;
-
-// functions
-void initMotor();
-// void goForward();
-// void goBackward();
-// void turnLeft();
-// void turnRight();
-// void stop();
-void setMotor();
-
-void initCompass();
-float getHeading();
 
 void initGps();
 void getCurrentPosition(double& lat, double& lng);
@@ -53,12 +38,34 @@ int getLatAndLng(String& string, GPosition& lat, GPosition& lng);
 // void printGPosition(GPosition& pos);
 double getGPositionValue(GPosition& pos);
 
+void initCompass();
+float getHeading();
+
+void initMotor();
+void setMotor();
+
+void initUS();
+long _getDistance(int trigPin, int echoPin);
+long getDistance(char index);
+
+// 메인 함수
 void waitGps(int max_iter = 100);
-void alignDirection(int max_iter = 100);
-void move(int max_iter = 1000);
+void moveAround();
+void goToPosition();
+void alignDirection();
+void checkDistance();
+
+DynamicJsonDocument doc(1024);
+QMC5883LCompass compass;
+
+double LAT_TARGET = 0., LNG_TARGET = 0.;
+double latValue, lngValue;
+
+int count = 0;
+int moveCount = 0;
 
 void setup() {
-    Serial.begin(9600);
+    Serial.println(9600);
     ble.begin(9600);
     initMotor();
     initCompass();
@@ -66,171 +73,180 @@ void setup() {
     waitGps(100);
 }
 
+bool moveAroundMode = false;
 void loop() {
-    // alignDirection(100);
-    // move(1000);
     count++;
 
-    if(ble.available()) {
-        char c = ble.read();
-        ble.write(c); ble.write('\r'); ble.write('\n');
-        switch (c)
-        {
-        case 'F':
-            setMotor(HIGH, LOW, HIGH, LOW);
-            break;
-        case 'B':
-            setMotor(LOW, HIGH, LOW, HIGH);
-            break;
-        case 'L':
-            setMotor(LOW, HIGH, HIGH, LOW);
-            break;
-        case 'R':
-            setMotor(HIGH, LOW, LOW, HIGH);
-            break;
-        case 'S':
-            setMotor(LOW, LOW, LOW, LOW);
-            break;        
-        default:
-            break;
-        }
-    }
-
-    double latValue, lngValue;
     getCurrentPosition(latValue, lngValue);
 
     float heading = getHeading();
     double targetHeading = atan2(LNG_TARGET - lngValue, LAT_TARGET - latValue) * 180.0 / PI;
-    
-    if(count == 100) {
+
+    if(Serial.available()) {
+        String cmd = Serial.readString();
+        doc.clear();
+        deserializeJson(doc, cmd);
+
+        String method = doc["method"];
+        String resource = doc["resource"];
+        if(!method.compareTo("get")) {
+            if(!resource.compareTo("position")) {
+                doc.clear();
+                doc["latitude"] = latValue;
+                doc["longitude"] = lngValue;
+                serializeJson(doc, Serial);
+            }
+        }
+        else if(!method.compareTo("set")) {
+            if(!resource.compareTo("position")) {
+                LAT_TARGET = doc["latitude"];
+                LNG_TARGET = doc["longitude"];
+                doc.clear();
+                moveAroundMode = false;
+                moveCount = 0;
+            }
+            else if(!method.compareTo("moveAround")) {
+                moveAroundMode = true;
+                moveCount = 0;
+            }
+        }
+    }
+
+    if(count % 100 == 0) {
         ble.print("Curr Heading: "); ble.println(heading, 5);
         ble.print("Tar Heading: "); ble.println(targetHeading, 5);
 
         ble.print("Current Pos: "); ble.print(latValue, 5); ble.print(" : "); ble.println(lngValue, 5);
         ble.print("Target Pos: "); ble.print(LAT_TARGET, 5); ble.print(" : "); ble.println(LNG_TARGET, 5);
 
-        ble.print("[Moving Status] ");
-        if(latValue > LAT_RANGE_MIN && latValue < LAT_RANGE_MAX && lngValue > LNG_RANGE_MIN && lngValue < LNG_RANGE_MAX) {
-            ble.println("STOP");
-        }
-        else {
-            double headingError = targetHeading - heading;
-            if(headingError > 180) { headingError -= 360; }
-            else if(headingError < -180) { headingError += 360; }
-            
-            ble.print("Heading error: "); ble.print(headingError); ble.print(" | ");
-            // Serial.println("Heading curr | targ => " + String(heading) + " | " + String(targetHeading));
-
-            if (headingError > 30) {
-                // turnRight();        
-                // setMotor(HIGH, LOW, LOW, HIGH);
-                ble.println("Turn Right");
-            }
-            else if(headingError < -30) {
-                // turnLeft();
-                // setMotor(LOW, HIGH, HIGH, LOW);
-                // Serial.println("TL");
-                ble.println("Turn Left");
-            }
-            else {
-                // stop();                
-                // setMotor(LOW, LOW, LOW, LOW);
-                // Serial.println("DT");
-                // return;
-                ble.println("Don't Turn");
-            }
-        }
-        ble.println("-----");
-        count = 0;
-    }
-    // delay(50);
-}
-
-void waitGps(int max_iter = 100) {
-    double heading;
-    double latValue, lngValue;
-
-    for(int i = 0; i < max_iter; i++) {
-        heading = getHeading();
-        getCurrentPosition(latValue, lngValue);
-
-        if(latValue > 36 && latValue < 38 && lngValue > 126 && lngValue < 128) {
-            return;
-        }
-        
-    }
-    Serial.println("GX");
-}
-
-void alignDirection(int max_iter = 100) {
-    for(int i = 0; i < max_iter; i++) {
-        double heading = getHeading();
-        double latValue, lngValue;
-        getCurrentPosition(latValue, lngValue);
-        Serial.print("CP, "); Serial.print(latValue, 5); Serial.print(", "); Serial.println(lngValue, 5);
-        // Serial.println("CP:" + String(latValue) + "," + String(lngValue)); 
-        // Serial.println("Target Pos:\t" + String(LAT_TARGET) + ", " + String(LNG_TARGET)); 
-
-        double targetHeading = atan2(LNG_TARGET - lngValue, LAT_TARGET - latValue) * 180.0 / PI;
-        // if(targetHeading < 0)  targetHeading += 360.0;
-
-        // if(heading > 180) heading -= 360;
-        // if(targetHeading > 180) targetHeading -=360;
-
         double headingError = targetHeading - heading;
         if(headingError > 180) { headingError -= 360; }
         else if(headingError < -180) { headingError += 360; }
         
-        Serial.println(headingError);
-        // Serial.println("Heading curr | targ => " + String(heading) + " | " + String(targetHeading));
+        ble.print("Heading error: "); ble.print(headingError); ble.println(" | ");
+    }
 
-        if (headingError > 30) {
-            // turnRight();        
-            setMotor(HIGH, LOW, LOW, HIGH);
-            Serial.println("TR");
-        }
-        else if(headingError < -30) {
-            // turnLeft();
-            setMotor(LOW, HIGH, HIGH, LOW);
-            Serial.println("TL");
-        }
-        else {
-            // stop();                
-            setMotor(LOW, LOW, LOW, LOW);
-            Serial.println("DT");
+    if(moveAroundMode) {
+        moveAround();
+    }
+    else {
+        goToPosition();
+    }
+    checkDistance();
+}
+
+void waitGps(int max_iter = 100) {
+    ble.println("Wating GPS...");
+    double latValue, lngValue;
+
+    for(int i = 0; i < max_iter; i++) {
+        getCurrentPosition(latValue, lngValue);
+
+        if(latValue > 36 && latValue < 38 && lngValue > 126 && lngValue < 128) {
             return;
-        }
+        }   
     }
 }
 
-void move(int max_iter = 1000) {
-    double heading;
-    double latValue, lngValue;
+void moveAround() {
+    if(moveCount > 0 && moveCount <= 30) {
+        setMotor(HIGH, LOW, LOW, HIGH); // turn left
+    }
+    else if(moveCount > 30 && moveCount <= 60) {
+        setMotor(LOW, HIGH, HIGH, LOW); // turn right
+    }
+    else if(moveCount > 60 && moveCount <= 120) {
+        setMotor(HIGH, LOW, HIGH, LOW); // go forward
+    }
+    else if(moveCount > 120 && moveCount <= 150) {
+        setMotor(HIGH, LOW, LOW, HIGH); // turn left
+    }
+    else {
+        moveCount = 0;
+    }
+}
+
+void goToPosition() {
+    if(moveCount > 0 && moveCount <= 30) {
+        alignDirection();
+    }
+    else if(moveCount > 30 && moveCount <= 120) {
+        setMotor(HIGH, LOW, HIGH, LOW); // go forward
+    }
+    else {
+        moveCount = 0;
+    }
+}
+
+
+void alignDirection() {
+    double heading = getHeading();
+    double targetHeading = atan2(LNG_TARGET - lngValue, LAT_TARGET - latValue) * 180.0 / PI;
     
-    for(int i = 0; i < max_iter; i++) {
-        heading = getHeading();
-        getCurrentPosition(latValue, lngValue);
-        Serial.print("CP, "); Serial.print(latValue, 5); Serial.print(", "); Serial.println(lngValue, 5);
-        
-        if(latValue > LAT_RANGE_MIN && latValue < LAT_RANGE_MAX && lngValue > LNG_RANGE_MIN && lngValue < LNG_RANGE_MAX) {
-            Serial.println("S");
-            // stop();
-            setMotor(LOW, LOW, LOW, LOW);
-            delay(1000);
-            return;
+    if(targetHeading < 0)  targetHeading += 360.0;
+
+    if(heading > 180) heading -= 360;
+    if(targetHeading > 180) targetHeading -=360;
+
+    double headingError = targetHeading - heading;
+    if(headingError > 180) { headingError -= 360; }
+    else if(headingError < -180) { headingError += 360; }
+
+    if (headingError > 30) {
+        setMotor(HIGH, LOW, LOW, HIGH);
+    }
+    else if(headingError < -30) {
+        setMotor(LOW, HIGH, HIGH, LOW);
+    }
+    else {
+        moveCount = 31;
+    }
+}
+
+void checkDistance() {
+    long distanceF = getDistance('F');
+    long distanceL = getDistance('L');
+    long distanceR = getDistance('R');
+    long distanceB = getDistance('B');
+    long distanceU = getDistance('U');
+
+    if(count % 10 == 0) {
+        ble.print("[US-FLRBU] ");
+        ble.print(distanceF); ble.print(", ");
+        ble.print(distanceL); ble.print(", ");
+        ble.print(distanceR); ble.print(", ");
+        ble.print(distanceB); ble.print(", ");
+        ble.println(distanceU);
+    }
+    
+    if(distanceF > 1 && distanceF < 7) {
+        if(distanceL > distanceR) {
+            ble.println("[Avoid] Turn left");
+            setMotor(HIGH, LOW, LOW, HIGH);
+            delay(300);
         }
         else {
-            Serial.println("GF");
-            // goForward();        
-            setMotor(HIGH, LOW, HIGH, LOW);
-
-            // if(latValue - LAT_TARGET > 0) Serial.print("to S,");
-            // else if(latValue - LAT_TARGET < 0) Serial.print("to N,");
-            // else Serial.print("to ,");
-
-            // if(lngValue - LNG_TARGET > 0) Serial.println("to W,");
-            // else if(lngValue - LNG_TARGET < 0) Serial.println("to E,");
-            // else Serial.println("to ,");
+            ble.println("[Avoid] Turn right");
+            setMotor(LOW, HIGH, HIGH, LOW);
+            delay(300);
         }
+    }
+
+    if(distanceL > 1 && distanceL < 7) {
+        ble.println("[Avoid] Turn right");
+        setMotor(LOW, HIGH, HIGH, LOW);
+        delay(300);
+    }
+
+    if(distanceR > 1 && distanceR < 7) {
+        ble.println("[Avoid] Turn left");
+        setMotor(HIGH, LOW, LOW, HIGH);
+        delay(300);
+    }
+
+    if(distanceU > 15 && distanceU < 100) {
+        ble.println("[Avoid] Go back");
+        setMotor(LOW, HIGH, LOW, HIGH);
+        delay(300);
     }
 }

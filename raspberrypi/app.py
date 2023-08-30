@@ -15,6 +15,9 @@ TIME_INTERVAL = 5
 BASE_URL = 'http://localhost:9999' # 상황에 맞게 바꾸기
 DEVICE_ID = "C001"
 
+lat_prev = None
+lng_prev = None
+
 # Load YOLO model
 def load_yolo():
     net = cv2.dnn.readNet("yolov4-tiny.weights", "yolov4-tiny.cfg")
@@ -104,19 +107,22 @@ def get_position(py_serial):
         return None
     else: # for test purpose
         return {
-            "status" : True,
             "latitude" : 37.630912,
             "longitude" : 127.079566,
         }
 
 def go_to_position(py_serial, position):
-    cmd = json.dumps({
-            "method":"set",
-            "resource":"position",
-            "latitude":position["latitude"],
-            "longitude":position["longitude"],
-        })
-    py_serial.write(cmd.encode())
+    if position["latitude"] != lat_prev or position["longitude"] != lng_prev:
+        cmd = json.dumps({
+                "method":"set",
+                "resource":"position",
+                "latitude":position["latitude"],
+                "longitude":position["longitude"],
+            })
+        py_serial.write(cmd.encode())
+        
+        lat_prev = position["latitude"]
+        lng_prev = position["longitude"]
 
 def move_around(py_serial):
     cmd = json.dumps({
